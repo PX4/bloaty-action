@@ -1,10 +1,10 @@
-FROM ghcr.io/carlosperate/bloaty:latest
+FROM ghcr.io/px4/px4-bloaty:latest
 
-LABEL "version"="1.1.0"
+LABEL "version"="v1.0.0"
 LABEL org.opencontainers.image.title="Bloaty McBloatface GitHub Action"
 LABEL org.opencontainers.image.description="GitHub Action using Docker to run Bloaty McBloatface: a size profiler for binaries."
-LABEL org.opencontainers.image.authors="Carlos Pereira Atencio <carlosperate@embeddedlog.com>"
-LABEL org.opencontainers.image.source="https://github.com/carlosperate/bloaty-action"
+LABEL org.opencontainers.image.authors="Carlos Pereira Atencio <carlosperate@embeddedlog.com>, Alexander Lerach <alexander@auterion.com>"
+LABEL org.opencontainers.image.source="https://github.com/PX4/bloaty-action"
 
 # Adding locale env variables to ensure shell is UTF-8 encoded
 ENV LANG C.UTF-8

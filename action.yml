@@ -25,11 +25,19 @@ outputs:
     description: "The output from Bloaty McBloatface"
   bloaty-output-encoded:
     description: "bloaty output in a string with escaped characters (so you'll get things like \\n)"
+  bloaty-total-file-percentage:
+    description: "Total percentage by which the total file size increased/decreased in diff mode. Otherwise always 100%"
+  bloaty-total-file-absolute:
+    description: "Total absolute value by which the total file size increased/decreased in diff mode. Otherwise the total file size"
+  bloaty-total-vm-percentage:
+    description: "Total percentage by which the total VM size increased/decreased in diff mode. Otherwise always 100%"
+  bloaty-total-vm-absolute:
+    description: "Total absolute value by which the total VM size increased/decreased in diff mode. Otherwise the total VM size"
 runs:
   using: docker
   # For testing we can build the Docker file by uncommenting switching this line
-  #image: docker-action/Dockerfile
-  image: docker://ghcr.io/carlosperate/bloaty-action:latest
+  image: docker-action/Dockerfile
+  #image: docker://ghcr.io/carlosperate/bloaty-action:latest
   args:
     # Old format used before the Python script was added
     # Echo in the format required to set action output      | send to envvar & stdout | remove the prefix         | echo with e flag to print with new lines
