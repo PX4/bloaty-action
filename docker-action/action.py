@@ -112,22 +112,20 @@ def main():
         )
 
     # Get the TOTAL output
-    encoded_lines = encoded_output.splitlines()
-    print(encoded_lines)
-    if len(encoded_lines) < 1 or "TOTAL" not in encoded_lines[-1]:
+    output_lines = bloaty_output.splitlines()
+    if len(output_lines) < 1 or "TOTAL" not in output_lines[-1]:
         print("\nAction:WARN: Could not find the total in bloaty output.", flush=True)
         return 1
 
-    total_split = encoded_lines[-1].split()
-    print(total_split)
-    if len(total_split) < 4:
+    total_line_split = output_lines[-1].replace("[ = ]", "0").split()
+    if len(total_line_split) < 4:
         print("\nAction:WARN: Could not split the total found in bloaty output into its individual parts.", flush=True)
         return 1
     
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-percentage", value=total_split[0])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-absolute", value=total_split[1])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-percentage", value=total_split[2])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-absolute", value=total_split[3])
+    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-percentage", value=total_line_split[0])
+    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-absolute", value=total_line_split[1])
+    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-percentage", value=total_line_split[2])
+    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-absolute", value=total_line_split[3])
 
     # Exit with success
     return 0
