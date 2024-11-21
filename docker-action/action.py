@@ -113,11 +113,13 @@ def main():
 
     # Get the TOTAL output
     encoded_lines = encoded_output.splitlines()
+    print(encoded_lines)
     if len(encoded_lines) < 1 or "TOTAL" not in encoded_lines[-1]:
         print("\nAction:WARN: Could not find the total in bloaty output.", flush=True)
         return 1
 
     total_split = encoded_lines[-1].split()
+    print(total_split)
     if len(total_split) < 4:
         print("\nAction:WARN: Could not split the total found in bloaty output into its individual parts.", flush=True)
         return 1
