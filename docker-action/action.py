@@ -117,7 +117,7 @@ def main():
         print("\nAction:WARN: Could not find the total in bloaty output.", flush=True)
         return 1
 
-    total_line_split = output_lines[-1].replace("[ = ]", "0").split()
+    total_line_split = output_lines[-1].replace("[ = ]", "0").replace("%", "").split()
     if len(total_line_split) < 4:
         print("\nAction:WARN: Could not split the total found in bloaty output into its individual parts.", flush=True)
         return 1
