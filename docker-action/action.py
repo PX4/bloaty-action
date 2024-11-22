@@ -121,11 +121,20 @@ def main():
     if len(total_line_split) < 4:
         print("\nAction:WARN: Could not split the total found in bloaty output into its individual parts.", flush=True)
         return 1
-    
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-percentage", value=total_line_split[0])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-absolute", value=total_line_split[1])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-percentage", value=total_line_split[2])
-    add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-absolute", value=total_line_split[3])
+
+    try:
+        total_file_percentage = float(total_line_split[0])
+        total_file_absolute = float(total_line_split[1])
+        total_vm_percentage = float(total_line_split[2])
+        total_vm_absolute = float(total_line_split[3])
+
+        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-percentage", value=total_file_percentage)
+        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-absolute", value=total_file_absolute)
+        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-percentage", value=total_vm_percentage)
+        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-absolute", value=total_vm_absolute)
+    except ValueError:
+        print("\nAction:WARN: Could not convert the bloaty output parts to numbers", flush=True)
+        return 1
 
     # Exit with success
     return 0
