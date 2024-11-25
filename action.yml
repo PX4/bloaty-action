@@ -41,5 +41,5 @@ runs:
   image: docker-action/Dockerfile
   #image: docker://ghcr.io/carlosperate/bloaty-action:latest
   args:
-    - "--bloaty-file-args ${{ inputs.bloaty-file-args }}"
-    - "--bloaty-additional-args ${{ inputs.bloaty-additional-args }}"
+    - --bloaty-file-args "${{ inputs.bloaty-file-args }}"
+    - --bloaty-additional-args "${{ inputs.bloaty-additional-args }}"
