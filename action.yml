@@ -25,14 +25,13 @@ outputs:
     description: "The output from Bloaty McBloatface"
   bloaty-output-encoded:
     description: "bloaty output in a string with escaped characters (so you'll get things like \\n)"
-  bloaty-total-file-percentage:
-    description: "Total percentage by which the total file size increased/decreased in diff mode. Otherwise always 100%"
-  bloaty-total-file-absolute:
-    description: "Total absolute value by which the total file size increased/decreased in diff mode. Otherwise the total file size"
-  bloaty-total-vm-percentage:
-    description: "Total percentage by which the total VM size increased/decreased in diff mode. Otherwise always 100%"
-  bloaty-total-vm-absolute:
-    description: "Total absolute value by which the total VM size increased/decreased in diff mode. Otherwise the total VM size"
+  bloaty-summary-map:
+    description: |
+      "JSON object, which contains the following members:"
+      "file-percentage: Total percentage by which the total file size increased/decreased in diff mode. Otherwise always 100%"
+      "file-absolute: Total absolute value by which the total file size increased/decreased in diff mode. Otherwise the total file size"
+      "vm-percentage: Total percentage by which the total VM size increased/decreased in diff mode. Otherwise always 100%"
+      "vm-absolute: Total absolute value by which the total VM size increased/decreased in diff mode. Otherwise the total VM size"
 runs:
   using: docker
   # For testing we can build the Docker file by uncommenting switching this line

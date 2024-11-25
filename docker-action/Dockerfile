@@ -13,7 +13,7 @@ ENV LC_ALL C.UTF-8
 # Install dependencies
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get update -qq && \
-    apt-get install -y --no-install-recommends locales python3 && \
+    apt-get install -y --no-install-recommends locales python3 jq && \
     apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 
 COPY action.py /action-script/action.py

@@ -9,18 +9,18 @@ import subprocess
 
 DEBUG_INFO = False
 
-def run_bloaty(cmd_list):
+def run(cmd, args_list):
     """Run a shell command and return the error code.
 
     :param cmd_list: A list of strings that make up the command to execute.
     """
     # Need to special-case a single arg, as the GitHub Action docker
     # environment sends all arguments in a single string
-    if len(cmd_list) == 1:
-        cmds = "bloaty {}".format(cmd_list[0])
+    if len(args_list) == 1:
+        cmds = "{} {}".format(cmd, args_list[0])
         shell = True
     else:
-        cmds = ["bloaty", *cmd_list]
+        cmds = [cmd, *args_list]
         shell = False
 
     print("Running: {}\n".format(cmds), flush=True)
@@ -45,6 +45,18 @@ def run_bloaty(cmd_list):
     return process_output
 
 
+def get_bloaty_output(bloaty_args):
+    bloaty_process_output = run("bloaty", bloaty_args)
+    bloaty_output_bytes = bloaty_process_output.stdout
+    try:
+        bloaty_output = bloaty_output_bytes.decode("utf-8")
+    except Exception as e:
+        print("Action:WARN: Could not decode bloaty output:\n{}\n".format(bloaty_output_bytes), flush=True)
+        return 1    # Exit with error code
+    print(bloaty_output)
+    return bloaty_process_output, bloaty_output, bloaty_output_bytes
+
+
 def add_to_gh_env_var(gh_env_var, key=None, value=None):
     """Adds a string to to a GH Action environmental variable."""
     if gh_env_var in os.environ:
@@ -59,6 +71,19 @@ def add_to_gh_env_var(gh_env_var, key=None, value=None):
         print("\nAction:WARN:", end=" ")
         print("Could not add to '{}' GH environmental variable.".format(gh_env_var))
         print(" " * 13 + "Are you sure this is running in a GH Actions environment?")
+
+
+def add_dict_to_gh_env_var(gh_env_var, key, dict):
+    jq_args = ["-n"]
+
+    for key, value in dict.items():
+        jq_args.append("--arg")
+        jq_args.append(key)
+        jq_args.append(f"\"{value}\"")
+    jq_args.append('$ARGS.named')
+
+    jq_output = run("jq", jq_args)
+    add_to_gh_env_var(gh_env_var, key, jq_output.stdout)
 
 
 def main():
@@ -79,15 +104,8 @@ def main():
 
     # Run bloaty with provided arguments
     # Action can pass empty arguments, so remove them first
-    bloaty_args = [arg for arg in bloaty_args if arg]
-    bloaty_process_output = run_bloaty(bloaty_args)
-    bloaty_output_bytes = bloaty_process_output.stdout
-    try:
-        bloaty_output = bloaty_output_bytes.decode("utf-8")
-    except Exception as e:
-        print("Action:WARN: Could not decode bloaty output:\n{}\n".format(bloaty_output_bytes), flush=True)
-        return 1    # Exit with error code
-    print(bloaty_output)
+    bloaty_args_list = [arg for arg in bloaty_args if arg]
+    bloaty_process_output, bloaty_output, bloaty_output_bytes = get_bloaty_output(bloaty_args_list)
 
     # Add bloaty output to the GH Action outputs
     if DEBUG_INFO:
@@ -112,29 +130,51 @@ def main():
         )
 
     # Get the TOTAL output
-    output_lines = bloaty_output.splitlines()
-    if len(output_lines) < 1 or "TOTAL" not in output_lines[-1]:
-        print("\nAction:WARN: Could not find the total in bloaty output.", flush=True)
+    bloaty_csv_args_list = ["--csv"] + bloaty_args_list
+    _, bloaty_csv_output, _ = get_bloaty_output(bloaty_csv_args_list)
+    output_lines = bloaty_csv_output.splitlines()
+
+    if len(output_lines) < 2:
+        print("\nAction:WARN: The bloaty output contains not enough lines", flush=True)
         return 1
 
-    total_line_split = output_lines[-1].replace("[ = ]", "0").replace("%", "").split()
-    if len(total_line_split) < 4:
-        print("\nAction:WARN: Could not split the total found in bloaty output into its individual parts.", flush=True)
-        return 1
+    total_orig_vm_size = 0
+    total_orig_file_size = 0
+    total_current_vm_size = 0
+    total_current_file_size = 0
 
-    try:
-        total_file_percentage = float(total_line_split[0])
-        total_file_absolute = float(total_line_split[1])
-        total_vm_percentage = float(total_line_split[2])
-        total_vm_absolute = float(total_line_split[3])
+    for line in output_lines[1:]:
+        line_split = line.split(",")
 
-        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-percentage", value=total_file_percentage)
-        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-file-absolute", value=total_file_absolute)
-        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-percentage", value=total_vm_percentage)
-        add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-total-vm-absolute", value=total_vm_absolute)
-    except ValueError:
-        print("\nAction:WARN: Could not convert the bloaty output parts to numbers", flush=True)
-        return 1
+        try:
+            if len(line_split) == 3:
+                total_current_vm_size = total_current_vm_size + int(line_split[1])
+                total_current_file_size = total_current_file_size + int(line_split[2])
+            elif len(line_split) == 7:
+                total_orig_vm_size = total_orig_vm_size + int(line_split[3])
+                total_orig_file_size = total_orig_file_size + int(line_split[4])
+                total_current_vm_size = total_current_vm_size + int(line_split[5])
+                total_current_file_size = total_current_file_size + int(line_split[6])
+            else:
+                print("\nAction:WARN: The bloaty output contains unexpected lines", flush=True)
+                return 1
+        except ValueError:
+            print("\nAction:WARN: Could not convert the bloaty output parts to numbers", flush=True)
+            return 1
+
+    total_file_absolute = total_current_file_size if total_orig_file_size == 0 else total_current_file_size - total_orig_file_size
+    total_file_percentage = 0 if total_orig_file_size == 0 else total_file_absolute / total_orig_file_size * 100
+    total_vm_absolute = total_current_vm_size if total_orig_vm_size == 0 else total_current_vm_size - total_orig_vm_size
+    total_vm_percentage = 0 if total_orig_vm_size == 0 else total_vm_absolute / total_orig_vm_size * 100
+
+    sum_map = {
+        "file-percentage": f"{total_file_percentage:.2f}",
+        "file-absolute": total_file_absolute,
+        "vm-percentage": f"{total_vm_percentage:.2f}",
+        "vm-absolute": total_vm_absolute
+    }
+
+    add_dict_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-summary-map", dict=sum_map)
 
     # Exit with success
     return 0
