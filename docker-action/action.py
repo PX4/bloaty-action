@@ -83,8 +83,13 @@ def add_dict_to_gh_env_var(gh_env_var, key, dict):
         jq_args.append(str(v))
     jq_args.append('$ARGS.named')
 
-    jq_output = run("jq", jq_args)
-    add_to_gh_env_var(gh_env_var, key, jq_output.stdout)
+    jq_process_output = run("jq", jq_args)
+
+    try:
+        jq_output = jq_process_output.stdout.decode("utf-8")
+        add_to_gh_env_var(gh_env_var, key, jq_output)
+    except Exception as e:
+        print("Action:WARN: Could not decode jq output:\n{}\n".format(jq_process_output.stdout), flush=True)
 
 
 def create_encoded_output(bloaty_output, bloaty_output_bytes):
