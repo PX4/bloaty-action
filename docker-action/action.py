@@ -70,47 +70,24 @@ def add_to_gh_env_var(gh_env_var, key=None, value=None):
     else:
         print("\nAction:WARN:", end=" ")
         print("Could not add to '{}' GH environmental variable.".format(gh_env_var))
+        print("Key: {}, Value: {}".format(key, value))
         print(" " * 13 + "Are you sure this is running in a GH Actions environment?")
 
 
 def add_dict_to_gh_env_var(gh_env_var, key, dict):
     jq_args = ["-n"]
 
-    for key, value in dict.items():
+    for k, v in dict.items():
         jq_args.append("--arg")
-        jq_args.append(key)
-        jq_args.append(f"\"{value}\"")
+        jq_args.append(k)
+        jq_args.append(str(v))
     jq_args.append('$ARGS.named')
 
     jq_output = run("jq", jq_args)
     add_to_gh_env_var(gh_env_var, key, jq_output.stdout)
 
 
-def main():
-    # First check if we need to enable print of debug info
-    global DEBUG_INFO
-    if ("INPUT_ACTION-VERBOSE" in os.environ and
-            os.environ["INPUT_ACTION-VERBOSE"] in ["true", "True", True, 1, "1"]):
-        DEBUG_INFO = True
-
-    # Parse the command line arguments
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--action-summary", action="store_true")
-    parser.add_argument("--bloaty-file-args", required=True)
-    parser.add_argument("--bloaty-additional-args")
-
-    args = parser.parse_args()
-
-    if DEBUG_INFO:
-        print("\nAction:INFO: Python bloaty file args: {}".format(args.bloaty_file_args))
-        print("Action:INFO: bloaty additional args:\n{}{}".format(args.bloaty_additional_args))
-        print(flush=True)
-
-    # Run bloaty with provided arguments
-    # Action can pass empty arguments, so remove them first
-    bloaty_args_list = args.bloaty_additional_args.split(" ") + args.bloaty_file_args.split(" ")
-    bloaty_process_output, bloaty_output, bloaty_output_bytes = get_bloaty_output(bloaty_args_list)
-
+def create_encoded_output(bloaty_output, bloaty_output_bytes):
     # Add bloaty output to the GH Action outputs
     if DEBUG_INFO:
         print("\nAction:INFO: Adding bloaty output to GH Action output.", flush=True)
@@ -119,8 +96,10 @@ def main():
     encoded_output = str(bloaty_output_bytes)[2:-1]
     add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-output-encoded", value=encoded_output)
 
+
+def create_step_summary(action_summary, bloaty_process_output, bloaty_output):
     # Process any arguments specific to this script
-    if args.action_summary or ("INPUT_OUTPUT-TO-SUMMARY" in os.environ and
+    if action_summary or ("INPUT_OUTPUT-TO-SUMMARY" in os.environ and
             os.environ["INPUT_OUTPUT-TO-SUMMARY"] in ["true", "True", True, 1, "1"]):
         if DEBUG_INFO:
             print("\nAction:INFO: Adding bloaty output to GH Action workflow summary.", flush=True)
@@ -133,8 +112,10 @@ def main():
             )
         )
 
+
+def create_total_output(bloaty_file_args):
     # Get the TOTAL output
-    bloaty_csv_args_list = ["--csv"] + args.bloaty_file_args.split(" ")
+    bloaty_csv_args_list = ["--csv"] + bloaty_file_args.split(" ")
     _, bloaty_csv_output, _ = get_bloaty_output(bloaty_csv_args_list)
     output_lines = bloaty_csv_output.splitlines()
 
@@ -179,6 +160,36 @@ def main():
     }
 
     add_dict_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-summary-map", dict=sum_map)
+
+
+def main():
+    # First check if we need to enable print of debug info
+    global DEBUG_INFO
+    if ("INPUT_ACTION-VERBOSE" in os.environ and
+            os.environ["INPUT_ACTION-VERBOSE"] in ["true", "True", True, 1, "1"]):
+        DEBUG_INFO = True
+
+    # Parse the command line arguments
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--action-summary", action="store_true")
+    parser.add_argument("--bloaty-file-args", required=True)
+    parser.add_argument("--bloaty-additional-args")
+
+    args = parser.parse_args()
+
+    if DEBUG_INFO:
+        print("\nAction:INFO: Python bloaty file args: {}".format(args.bloaty_file_args))
+        print("Action:INFO: bloaty additional args:\n{}{}".format(args.bloaty_additional_args))
+        print(flush=True)
+
+    # Run bloaty with provided arguments
+    # Action can pass empty arguments, so remove them first
+    bloaty_args_list = args.bloaty_additional_args.split(" ") + args.bloaty_file_args.split(" ")
+    bloaty_process_output, bloaty_output, bloaty_output_bytes = get_bloaty_output(bloaty_args_list)
+
+    create_encoded_output(bloaty_output, bloaty_output_bytes)
+    create_step_summary(args.action_summary, bloaty_process_output, bloaty_output)
+    create_total_output(args.bloaty_file_args)
 
     # Exit with success
     return 0
