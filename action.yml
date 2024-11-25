@@ -5,8 +5,11 @@ branding:
   color: "orange"
   icon: "wind"
 inputs:
-  bloaty-args:
-    description: "Arguments to pass to Bloaty McBloatface"
+  bloaty-file-args:
+    description: "Files to pass to Bloaty McBloatface"
+    required: true
+  bloaty-additional-args:
+    description: "Additional arguments to pass to Bloaty McBloatface"
     required: true
   output-to-summary:
     description: "Add the Bloaty output to the GitHub Actions Job Summary"
@@ -38,7 +41,5 @@ runs:
   image: docker-action/Dockerfile
   #image: docker://ghcr.io/carlosperate/bloaty-action:latest
   args:
-    # Old format used before the Python script was added
-    # Echo in the format required to set action output      | send to envvar & stdout | remove the prefix         | echo with e flag to print with new lines
-    #- echo bloaty-output=$(bloaty ${{ inputs.bloaty-args }}) | tee -a $GITHUB_OUTPUT | sed "s/^bloaty-output=//" | xargs -0 echo -e
-    - ${{ inputs.bloaty-args }}
+    - "--bloaty-file-args ${{ inputs.bloaty-file-args }}"
+    - "--bloaty-additional-args ${{ inputs.bloaty-additional-args }}"

@@ -96,15 +96,19 @@ def main():
     # Parse the command line arguments
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--action-summary", action="store_true")
-    action_args, bloaty_args = parser.parse_known_args()
+    parser.add_argument("--bloaty-file-args", required=True)
+    parser.add_argument("--bloaty-additional-args")
+
+    args = parser.parse_args()
+
     if DEBUG_INFO:
-        print("\nAction:INFO: Python script args: {}".format(action_args))
-        print("Action:INFO: bloaty args:\n{}{}".format(" " * 13, bloaty_args))
+        print("\nAction:INFO: Python bloaty file args: {}".format(args.bloaty_file_args))
+        print("Action:INFO: bloaty additional args:\n{}{}".format(args.bloaty_additional_args))
         print(flush=True)
 
     # Run bloaty with provided arguments
     # Action can pass empty arguments, so remove them first
-    bloaty_args_list = [arg for arg in bloaty_args if arg]
+    bloaty_args_list = args.bloaty_additional_args.split(" ") + args.bloaty_file_args.split(" ")
     bloaty_process_output, bloaty_output, bloaty_output_bytes = get_bloaty_output(bloaty_args_list)
 
     # Add bloaty output to the GH Action outputs
@@ -116,7 +120,7 @@ def main():
     add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-output-encoded", value=encoded_output)
 
     # Process any arguments specific to this script
-    if action_args.action_summary or ("INPUT_OUTPUT-TO-SUMMARY" in os.environ and
+    if args.action_summary or ("INPUT_OUTPUT-TO-SUMMARY" in os.environ and
             os.environ["INPUT_OUTPUT-TO-SUMMARY"] in ["true", "True", True, 1, "1"]):
         if DEBUG_INFO:
             print("\nAction:INFO: Adding bloaty output to GH Action workflow summary.", flush=True)
@@ -130,7 +134,7 @@ def main():
         )
 
     # Get the TOTAL output
-    bloaty_csv_args_list = ["--csv"] + bloaty_args_list
+    bloaty_csv_args_list = ["--csv"] + args.bloaty_file_args.split(" ")
     _, bloaty_csv_output, _ = get_bloaty_output(bloaty_csv_args_list)
     output_lines = bloaty_csv_output.splitlines()
 
