@@ -38,8 +38,8 @@ outputs:
 runs:
   using: docker
   # For testing we can build the Docker file by uncommenting switching this line
-  image: docker-action/Dockerfile
-  #image: docker://ghcr.io/carlosperate/bloaty-action:latest
+  # image: docker-action/Dockerfile
+  image: docker://ghcr.io/px4/px4-bloaty-action:latest
   args:
     - --bloaty-file-args
     - ${{ inputs.bloaty-file-args }}
