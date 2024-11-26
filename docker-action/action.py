@@ -3,12 +3,13 @@
 """Run a command, add output it to the action output"""
 import os
 import sys
-import shutil
 import argparse
 import subprocess
 
 DEBUG_INFO = False
 
+
+# -----------------------------------------------------------------------------
 def run(cmd, args_list):
     """Run a shell command and return the error code.
 
@@ -45,18 +46,19 @@ def run(cmd, args_list):
     return process_output
 
 
+# -----------------------------------------------------------------------------
 def get_bloaty_output(bloaty_args):
     bloaty_process_output = run("bloaty", bloaty_args)
-    bloaty_output_bytes = bloaty_process_output.stdout
     try:
-        bloaty_output = bloaty_output_bytes.decode("utf-8")
-    except Exception as e:
-        print("Action:WARN: Could not decode bloaty output:\n{}\n".format(bloaty_output_bytes), flush=True)
-        return 1    # Exit with error code
+        bloaty_output = bloaty_process_output.stdout.decode("utf-8")
+    except Exception:
+        print("Action:ERROR: Could not decode bloaty output:\n{}\n".format(bloaty_process_output.stdout), flush=True)
+        sys.exit(1) # Exit with error code
     print(bloaty_output)
-    return bloaty_process_output, bloaty_output, bloaty_output_bytes
+    return bloaty_process_output, bloaty_output
 
 
+# -----------------------------------------------------------------------------
 def add_to_gh_env_var(gh_env_var, key=None, value=None):
     """Adds a string to to a GH Action environmental variable."""
     if gh_env_var in os.environ:
@@ -74,6 +76,7 @@ def add_to_gh_env_var(gh_env_var, key=None, value=None):
         print(" " * 13 + "Are you sure this is running in a GH Actions environment?")
 
 
+# -----------------------------------------------------------------------------
 def add_dict_to_gh_env_var(gh_env_var, key, dict):
     jq_args = ["-n"]
 
@@ -84,20 +87,31 @@ def add_dict_to_gh_env_var(gh_env_var, key, dict):
     jq_args.append('$ARGS.named')
 
     jq_process_output = run("jq", jq_args)
+    if len(jq_process_output.stdout) < 3:
+        print("\nAction:ERROR: The jq output is too short:\n{}\n".format(jq_process_output.stdout), flush=True)
+        sys.exit(1)
+
     jq_encoded_output = str(jq_process_output.stdout)[2:-1]
     add_to_gh_env_var(gh_env_var, key, jq_encoded_output)
 
 
-def create_encoded_output(bloaty_output, bloaty_output_bytes):
+# -----------------------------------------------------------------------------
+def create_encoded_output(bloaty_process_output, bloaty_output):
     # Add bloaty output to the GH Action outputs
     if DEBUG_INFO:
         print("\nAction:INFO: Adding bloaty output to GH Action output.", flush=True)
     add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-output", value=bloaty_output)
+
+    if len(bloaty_process_output.stdout) < 3:
+        print("\nAction:ERROR: The bloaty output is too short:\n{}\n".format(bloaty_process_output.stdout), flush=True)
+        sys.exit(1)
+
     # ASCIIfy the byte string without the b''
-    encoded_output = str(bloaty_output_bytes)[2:-1]
+    encoded_output = str(bloaty_process_output.stdout)[2:-1]
     add_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-output-encoded", value=encoded_output)
 
 
+# -----------------------------------------------------------------------------
 def create_step_summary(action_summary, bloaty_process_output, bloaty_output):
     # Process any arguments specific to this script
     if action_summary or ("INPUT_OUTPUT-TO-SUMMARY" in os.environ and
@@ -114,55 +128,61 @@ def create_step_summary(action_summary, bloaty_process_output, bloaty_output):
         )
 
 
-def create_total_output(bloaty_file_args):
-    # Get the TOTAL output
+# -----------------------------------------------------------------------------
+def create_summary_map(bloaty_file_args):
+    # Get the bloaty output as CSV, so parsing is easier
     bloaty_csv_args_list = ["--csv"] + bloaty_file_args.split(" ")
     _, bloaty_csv_output, _ = get_bloaty_output(bloaty_csv_args_list)
     output_lines = bloaty_csv_output.splitlines()
 
     if len(output_lines) < 2:
-        print("\nAction:WARN: The bloaty output contains not enough lines", flush=True)
-        return 1
+        print("\nAction:ERROR: The bloaty output contains not enough lines", flush=True)
+        sys.exit(1)
 
-    total_orig_vm_size = 0
-    total_orig_file_size = 0
-    total_current_vm_size = 0
-    total_current_file_size = 0
+    orig_vm_size = 0
+    orig_file_size = 0
+    current_vm_size = 0
+    current_file_size = 0
 
+    # Sum up the individual sizes to get the total diff / size
     for line in output_lines[1:]:
         line_split = line.split(",")
 
         try:
+            # Case 1: Bloaty is called with a single file (no diff)
             if len(line_split) == 3:
-                total_current_vm_size = total_current_vm_size + int(line_split[1])
-                total_current_file_size = total_current_file_size + int(line_split[2])
+                current_vm_size = current_vm_size + int(line_split[1])
+                current_file_size = current_file_size + int(line_split[2])
+            # Case 2: Bloaty is called with two files (diff)
             elif len(line_split) == 7:
-                total_orig_vm_size = total_orig_vm_size + int(line_split[3])
-                total_orig_file_size = total_orig_file_size + int(line_split[4])
-                total_current_vm_size = total_current_vm_size + int(line_split[5])
-                total_current_file_size = total_current_file_size + int(line_split[6])
+                orig_vm_size = orig_vm_size + int(line_split[3])
+                orig_file_size = orig_file_size + int(line_split[4])
+                current_vm_size = current_vm_size + int(line_split[5])
+                current_file_size = current_file_size + int(line_split[6])
             else:
-                print("\nAction:WARN: The bloaty output contains unexpected lines", flush=True)
-                return 1
+                print("\nAction:ERROR: The bloaty output contains unexpected lines", flush=True)
+                sys.exit(1)
         except ValueError:
-            print("\nAction:WARN: Could not convert the bloaty output parts to numbers", flush=True)
-            return 1
+            print("\nAction:ERROR: Could not convert the bloaty output parts to numbers", flush=True)
+            sys.exit(1)
 
-    total_file_absolute = total_current_file_size if total_orig_file_size == 0 else total_current_file_size - total_orig_file_size
-    total_file_percentage = 0 if total_orig_file_size == 0 else total_file_absolute / total_orig_file_size * 100
-    total_vm_absolute = total_current_vm_size if total_orig_vm_size == 0 else total_current_vm_size - total_orig_vm_size
-    total_vm_percentage = 0 if total_orig_vm_size == 0 else total_vm_absolute / total_orig_vm_size * 100
+    # Depending on the bloaty call calculate the diff (with a meaningful percentage) or the total size
+    file_absolute = current_file_size if orig_file_size == 0 else current_file_size - orig_file_size
+    file_percentage = 0 if orig_file_size == 0 else file_absolute / orig_file_size * 100
+    vm_absolute = current_vm_size if orig_vm_size == 0 else current_vm_size - orig_vm_size
+    vm_percentage = 0 if orig_vm_size == 0 else vm_absolute / orig_vm_size * 100
 
     sum_map = {
-        "file-percentage": f"{total_file_percentage:.2f}",
-        "file-absolute": total_file_absolute,
-        "vm-percentage": f"{total_vm_percentage:.2f}",
-        "vm-absolute": total_vm_absolute
+        "file-percentage": f"{file_percentage:.2f}",
+        "file-absolute": file_absolute,
+        "vm-percentage": f"{vm_percentage:.2f}",
+        "vm-absolute": vm_absolute
     }
 
     add_dict_to_gh_env_var("GITHUB_OUTPUT", key="bloaty-summary-map", dict=sum_map)
 
 
+# -----------------------------------------------------------------------------
 def main():
     # First check if we need to enable print of debug info
     global DEBUG_INFO
@@ -184,17 +204,17 @@ def main():
         print(flush=True)
 
     # Run bloaty with provided arguments
-    # Action can pass empty arguments, so remove them first
     bloaty_args_list = args.bloaty_additional_args.split(" ") + args.bloaty_file_args.split(" ")
-    bloaty_process_output, bloaty_output, bloaty_output_bytes = get_bloaty_output(bloaty_args_list)
+    bloaty_process_output, bloaty_output = get_bloaty_output(bloaty_args_list)
 
-    create_encoded_output(bloaty_output, bloaty_output_bytes)
+    create_encoded_output(bloaty_process_output, bloaty_output)
     create_step_summary(args.action_summary, bloaty_process_output, bloaty_output)
-    create_total_output(args.bloaty_file_args)
+    create_summary_map(args.bloaty_file_args)
 
     # Exit with success
     return 0
 
 
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     sys.exit(main())
