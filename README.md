@@ -5,15 +5,16 @@ binaries: https://github.com/google/bloaty/
 
 ```yaml
 - name: Run Bloaty McBloatface on an ELF file
-  uses: carlosperate/bloaty-action@v1
+  uses: px4/px4-bloaty-action@v1.0.0
   with:
-    bloaty-args: <path_to_your_file_and_any_bloaty_flags>
+    bloaty-file-args: <path_to_your_file>
+    bloaty-additional-args: <your_bloaty_flags
 ```
 
 - 🧑‍💻 Additional examples, including Job Summaries and PR comments, can be
   found in the "[Additional Action Examples](#additional-action-examples)"
   section.
-- 🐳 A Bloaty Docker image (`ghcr.io/carlosperate/bloaty`) is also provided,
+- 🐳 A Bloaty Docker image (`ghcr.io/px4/px4-bloaty`) is also provided,
   more info in the
   "[Using the Docker Image to run Bloaty directly](#using-the-docker-image-to-run-bloaty-directly)" section.
 
@@ -21,15 +22,21 @@ binaries: https://github.com/google/bloaty/
 ## Action Inputs/Outputs
 
 Inputs:
-- `bloaty-args`: **(Required)** All arguments to pass to Bloaty McBloatface.
+- `bloaty-file-args`: **(Required)** Files to pass to Bloaty McBloatface.
+- `bloaty-additional-args`: **(Required)** Additional arguments to pass to Bloaty McBloatface.
 - `output-to-summary`: *(Optional, default `false`)* Boolean (`true` or `false`) to include
   the bloaty output in the [GitHub Actions Job Summary](https://github.blog/2022-05-09-supercharging-github-actions-with-job-summaries/).
 - `summary-title`: *(Optional, default `"bloaty output"`)* If
   `output-to-summary` is enabled, this is the title on top of the bloaty output.
 
 Outputs:
-- `bloaty-output`: A string with the output from Bloaty McBloatface
+- `bloaty-output`: A string with the output from Bloaty McBloatface.
 - `bloaty-output-encoded`: The bloaty output string with escaped characters (so you'll get things like `\n`). It can be easier to pass this to other action steps.
+- `bloaty-summary-map`: JSON object, which contains the following members:
+  - `file-percentage`: Total percentage by which the total file size increased/decreased in diff mode. Otherwise always 100%.
+  - `file-absolute`: Total absolute value by which the total file size increased/decreased in diff mode. Otherwise the total file size.
+  - `vm-percentage`: Total percentage by which the total VM size increased/decreased in diff mode. Otherwise always 100%.
+  - `vm-absolute`: Total absolute value by which the total VM size increased/decreased in diff mode. Otherwise the total VM size.
 
 
 ## Using the Docker image to run Bloaty directly
@@ -37,7 +44,7 @@ Outputs:
 This repository contains two Dockerfiles and the two Docker images are hosted in
 the [GitHub Docker Container registry](https://github.blog/2020-09-01-introducing-github-container-registry/).
 
-The [`ghcr.io/carlosperate/bloaty`](docker-bloaty/) Docker image contains the
+The [`ghcr.io/px4/px4-bloaty`](docker-bloaty/) Docker image contains the
 bloaty application on its own, and can be used used to easily run `bloaty`
 directly in your own environment or applications.
 
@@ -45,7 +52,7 @@ For example, to diff two ELF files contained in this repo, you can run the
 following command from this repository root directory:
 
 ```bash
-docker run --rm -v $(pwd):/home ghcr.io/carlosperate/bloaty:latest test-elf-files/example-after.elf -- test-elf-files/example-before.elf
+docker run --rm -v $(pwd):/home ghcr.io/px4/px4-bloaty:latest test-elf-files/example-after.elf -- test-elf-files/example-before.elf
 ```
 ```
     FILE SIZE        VM SIZE    
@@ -68,7 +75,7 @@ docker run --rm -v $(pwd):/home ghcr.io/carlosperate/bloaty:latest test-elf-file
    +12%  +397Ki  +5.6% +20.7Ki    TOTAL
 ```
 
-The other [`ghcr.io/carlosperate/bloaty-action`](docker-action/) Docker image
+The other [`ghcr.io/px4/px4-bloaty-action`](docker-action/) Docker image
 is built on top of the base `bloaty` image to run with GitHub Actions, and
 includes a custom script adding GitHub Actions specific features.
 
@@ -91,16 +98,17 @@ simply set the `output-to-summary` input to `true`:
 
 ```yaml
 - name: Run Bloaty & add output to the run summary
-  uses: carlosperate/bloaty-action@v1
+  uses: px4/px4-bloaty-action@v1.0.0
   with:
-    bloaty-args: -d compileunits,symbols test-elf-files/example-before.elf
+    bloaty-file-args: test-elf-files/example-before.elf
+    bloaty-additional-args: -d compileunits,symbols
     output-to-summary: true
     summary-title: "Size profile of `example-before.elf` largest components"
 ```
 
 <br clear="left"/>
 
-To create a PR comment, add an `id` to the `carlosperate/bloaty-action` step,
+To create a PR comment, add an `id` to the `px4/px4-bloaty-action` step,
 and then use its output with the the
 [`actions/github-script`](https://github.com/actions/github-script/) action to
 post a markdown comment to the PR:
@@ -109,10 +117,11 @@ post a markdown comment to the PR:
 
 ```yaml
 - name: Run Bloaty McBloatface on an ELF file
-  uses: carlosperate/bloaty-action@v1
+  uses: px4/px4-bloaty-action@v1.0.0
   id: bloaty-step
   with:
-    bloaty-args: test-elf-files/example-before.elf
+    bloaty-file-args: test-elf-files/example-before.elf
+    bloaty-additional-args: -d sections
 - name: Add a PR comment with the bloaty output
   uses: actions/github-script@v6
   with:
@@ -149,9 +158,10 @@ steps:
   - name: Run Bloaty to compare both output files
     if: ${{ github.event.pull_request }}
     id: bloaty-comparison
-    uses: carlosperate/bloaty-action@v1
+    uses: px4/px4-bloaty-action@v1.0.0
     with:
-      bloaty-args: ../original.elf -- <path_to_the_base_commit_elf>
+      bloaty-file-args: ../original.elf -- <path_to_the_base_commit_elf>
+      bloaty-additional-args: -d sections
       output-to-summary: true
   - name: Add a PR comment with the bloaty diff
     if: ${{ github.event.pull_request }}
