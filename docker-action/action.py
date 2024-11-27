@@ -132,7 +132,7 @@ def create_step_summary(action_summary, bloaty_process_output, bloaty_output):
 def create_summary_map(bloaty_file_args):
     # Get the bloaty output as CSV, so parsing is easier
     bloaty_csv_args_list = ["--csv"] + bloaty_file_args.split(" ")
-    _, bloaty_csv_output, _ = get_bloaty_output(bloaty_csv_args_list)
+    _, bloaty_csv_output = get_bloaty_output(bloaty_csv_args_list)
     output_lines = bloaty_csv_output.splitlines()
 
     if len(output_lines) < 2:

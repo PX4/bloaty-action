@@ -5,7 +5,7 @@ binaries: https://github.com/google/bloaty/
 
 ```yaml
 - name: Run Bloaty McBloatface on an ELF file
-  uses: px4/px4-bloaty-action@v1.0.0
+  uses: PX4/bloaty-action@v1.0.0
   with:
     bloaty-file-args: <path_to_your_file>
     bloaty-additional-args: <your_bloaty_flags
@@ -98,7 +98,7 @@ simply set the `output-to-summary` input to `true`:
 
 ```yaml
 - name: Run Bloaty & add output to the run summary
-  uses: px4/px4-bloaty-action@v1.0.0
+  uses: PX4/bloaty-action@v1.0.0
   with:
     bloaty-file-args: test-elf-files/example-before.elf
     bloaty-additional-args: -d compileunits,symbols
@@ -108,7 +108,7 @@ simply set the `output-to-summary` input to `true`:
 
 <br clear="left"/>
 
-To create a PR comment, add an `id` to the `px4/px4-bloaty-action` step,
+To create a PR comment, add an `id` to the `PX4/bloaty-action` step,
 and then use its output with the the
 [`actions/github-script`](https://github.com/actions/github-script/) action to
 post a markdown comment to the PR:
@@ -117,7 +117,7 @@ post a markdown comment to the PR:
 
 ```yaml
 - name: Run Bloaty McBloatface on an ELF file
-  uses: px4/px4-bloaty-action@v1.0.0
+  uses: PX4/bloaty-action@v1.0.0
   id: bloaty-step
   with:
     bloaty-file-args: test-elf-files/example-before.elf
@@ -158,7 +158,7 @@ steps:
   - name: Run Bloaty to compare both output files
     if: ${{ github.event.pull_request }}
     id: bloaty-comparison
-    uses: px4/px4-bloaty-action@v1.0.0
+    uses: PX4/bloaty-action@v1.0.0
     with:
       bloaty-file-args: ../original.elf -- <path_to_the_base_commit_elf>
       bloaty-additional-args: -d sections
