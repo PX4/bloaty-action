@@ -194,7 +194,7 @@ def main():
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--action-summary", action="store_true")
     parser.add_argument("--bloaty-file-args", required=True)
-    parser.add_argument("--bloaty-additional-args")
+    parser.add_argument("--bloaty-additional-args", required=True)
 
     args = parser.parse_args()
 
