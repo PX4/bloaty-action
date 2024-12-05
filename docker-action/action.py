@@ -135,7 +135,7 @@ def create_summary_map(bloaty_file_args):
     _, bloaty_csv_output = get_bloaty_output(bloaty_csv_args_list)
     output_lines = bloaty_csv_output.splitlines()
 
-    if len(output_lines) < 2:
+    if len(output_lines) < 1:
         print("\nAction:ERROR: The bloaty output contains not enough lines", flush=True)
         sys.exit(1)
 
